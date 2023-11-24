@@ -1,83 +1,47 @@
 package com.example.helloboot;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.server.WebServer;
-import org.springframework.boot.web.servlet.ServletContextInitializer;
-import org.springframework.context.support.GenericApplicationContext;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
+import org.springframework.web.servlet.DispatcherServlet;
 
-import java.io.IOException;
-
-@SpringBootApplication
+//@SpringBootApplication
+@Configuration
+@ComponentScan
 public class HellobootApplication {
 
-//    public static void main(String[] args) {
-//        SpringApplication.run(HellobootApplication.class, args);
-//    }
+    @Bean
+    public ServletWebServerFactory servletWebServerFactory() {
+        return new TomcatServletWebServerFactory();
+    }
 
-    /**
-     * #1 Servlet container
-     */
-//    public static void main(String[] args) {
-//        TomcatServletWebServerFactory serverFactory = new TomcatServletWebServerFactory();
-//        WebServer webServer = serverFactory.getWebServer(servletContext -> {
-//            servletContext.addServlet("hello", new HttpServlet() {
-//                @Override
-//                protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-//                    String name = req.getParameter("name");
-//
-//                    resp.setStatus(HttpStatus.OK.value());
-//                    resp.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_PLAIN_VALUE);
-//                    resp.getWriter().println("Hello Servlet " + name);
-//                }
-//            }).addMapping("/hello");
-//        });
-//        webServer.start();
-//    }
+    @Bean
+    public DispatcherServlet dispatcherServlet() {
+        return new DispatcherServlet();
+    }
 
-    /**
-     * #2 Front controller
-     */
     public static void main(String[] args) {
-        GenericApplicationContext ac = new GenericApplicationContext();
-        ac.registerBean(HelloController.class);
+        AnnotationConfigWebApplicationContext ac = new AnnotationConfigWebApplicationContext() {
+            @Override
+            protected void onRefresh() {
+                super.onRefresh();
+
+                ServletWebServerFactory serverFactory = this.getBean(ServletWebServerFactory.class);
+                DispatcherServlet dispatcherServlet = this.getBean(DispatcherServlet.class);
+//                dispatcherServlet.setApplicationContext(this);
+
+                WebServer webServer = serverFactory.getWebServer(servletContext -> {
+                    servletContext.addServlet("dispatcherServlet", dispatcherServlet).addMapping("/*");
+                });
+                webServer.start();
+            }
+        };
+        ac.register(HellobootApplication.class);
         ac.refresh();
-
-        TomcatServletWebServerFactory serverFactory = new TomcatServletWebServerFactory();
-        WebServer webServer = serverFactory.getWebServer(servletContext -> {
-
-            servletContext.addServlet("frontcontroller", new HttpServlet() {
-                @Override
-                protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-                    // 인증, 보안, 다국어, 공통 기능
-                    if (req.getRequestURI().equals("/hello") && req.getMethod().equals(HttpMethod.GET.name())) {
-                        String name = req.getParameter("name");
-
-                        HelloController bean = ac.getBean(HelloController.class);
-                        String hello = bean.hello(name);
-
-                        resp.setContentType(MediaType.TEXT_PLAIN_VALUE);
-                        resp.getWriter().println(hello);
-                    } else if (req.getRequestURI().equals("/user")) {
-                        //
-                    } else {
-                        resp.setStatus(HttpStatus.NOT_FOUND.value());
-                    }
-
-                }
-            }).addMapping("/*");
-        });
-        webServer.start();
     }
 
 }
