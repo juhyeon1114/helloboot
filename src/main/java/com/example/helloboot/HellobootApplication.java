@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.server.WebServer;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
+import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -48,9 +49,12 @@ public class HellobootApplication {
      * #2 Front controller
      */
     public static void main(String[] args) {
+        GenericApplicationContext ac = new GenericApplicationContext();
+        ac.registerBean(HelloController.class);
+        ac.refresh();
+
         TomcatServletWebServerFactory serverFactory = new TomcatServletWebServerFactory();
         WebServer webServer = serverFactory.getWebServer(servletContext -> {
-            HelloController helloController = new HelloController();
 
             servletContext.addServlet("frontcontroller", new HttpServlet() {
                 @Override
@@ -59,10 +63,10 @@ public class HellobootApplication {
                     if (req.getRequestURI().equals("/hello") && req.getMethod().equals(HttpMethod.GET.name())) {
                         String name = req.getParameter("name");
 
-                        String hello = helloController.hello(name);
+                        HelloController bean = ac.getBean(HelloController.class);
+                        String hello = bean.hello(name);
 
-                        resp.setStatus(HttpStatus.OK.value());
-                        resp.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_PLAIN_VALUE);
+                        resp.setContentType(MediaType.TEXT_PLAIN_VALUE);
                         resp.getWriter().println(hello);
                     } else if (req.getRequestURI().equals("/user")) {
                         //
